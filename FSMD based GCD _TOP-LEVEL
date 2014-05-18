@@ -1,3 +1,5 @@
+
+--------------------------------------TOP LEVEL--------------------------------------------------------------------------
 ----------------------------------------------------------------------------------
 -- Company: 
 -- Engineer: 
@@ -132,4 +134,1064 @@ begin
 
 				
 end top_module;
+
+
+
+--------------------------------------------CONTROL PATH-----------------------------------------------------------------
+
+
+
+----------------------------------------------------------------------------------
+-- Company: 
+-- Engineer: 
+-- 
+-- Create Date:    14:29:42 04/05/2014 
+-- Design Name: 
+-- Module Name:    gcd_contolpath - Behavioral 
+-- Project Name: 
+-- Target Devices: 
+-- Tool versions: 
+-- Description: 
+--
+-- Dependencies: 
+--
+-- Revision: 
+-- Revision 0.01 - File Created
+-- Additional Comments: 
+--
+----------------------------------------------------------------------------------
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.STD_LOGIC_UNSIGNED.ALL;
+-- Uncomment the following library declaration if using
+-- arithmetic functions with Signed or Unsigned values
+--use IEEE.NUMERIC_STD.ALL;
+
+-- Uncomment the following library declaration if instantiating
+-- any Xilinx primitives in this code.
+--library UNISIM;
+--use UNISIM.VComponents.all;
+
+entity gcd_contolpath is
+    Port ( clk : in  STD_LOGIC;
+           clr : in  STD_LOGIC;
+           eqflg : in  STD_LOGIC;
+           ltflg : in  STD_LOGIC;
+           go : in  STD_LOGIC;
+           xmsel : out  STD_LOGIC;
+           ymsel : out  STD_LOGIC;
+           xld : out  STD_LOGIC;
+           yld : out  STD_LOGIC;
+           gld : out  STD_LOGIC);
+end gcd_contolpath;
+
+architecture gcd_contolpath of gcd_contolpath is
+type state_type is (start,input,test1,test2,update1,update2,done);
+signal present_state,next_state : state_type;
+begin
+
+	   
+		
+initial : process(clk,clr)
+	begin
+		if clr = '1' then
+		present_state <= start;
+		elsif clk'event and clk = '1' then
+		present_state <= next_state;
+		end if;
+end process;
+
+	P1 : process(present_state,go,eqflg,ltflg)
+	begin
+		gld <= '0';
+		case present_state is
+				when start =>
+						xld <= '0';
+						yld <= '0';
+						xmsel <= '1';
+						ymsel <= '1';
+						
+						if go = '1' then
+						next_state <= input;
+						else
+						next_state <= start;
+						end if;
+						report "start";
+				
+				when input =>
+						next_state <= test1;
+						xld <= '1';
+						yld <= '1';
+						xmsel <= '1';
+						ymsel <= '1';
+						report "input";
+						
+				when test1 =>
+						if eqflg = '0' then
+						next_state <= test2;
+						else
+						next_state <= done;
+						end if;
+						report "test1";
+						
+				when test2 =>
+						if ltflg = '1' then
+						next_state <= update1;
+						else
+						next_state <= update2;
+						end if;
+						report "test2";
+				
+				when update1 => --ymx
+						next_state <= test1;
+						yld <= '1';
+						ymsel <= '0';
+						xmsel <= '1';
+						xld <= '0';
+						report "update1";
+						
+				when update2 => --xmy 		x > y
+						next_state <= test1;
+						xld <= '1';
+						xmsel <= '0';
+						ymsel <= '1';
+						yld <= '0';
+						report "update2";
+						
+				when done =>
+						next_state <= done;
+						gld <= '1';
+						xld <= '0';
+						yld <= '0';
+						xmsel <= '1';
+						xmsel <= '1';
+						report "done reached";
+				
+				when others => null;
+				report "Error in State machine";
+				
+end case;
+end process;				
+				
+					
+end gcd_contolpath;
+
+
+
+---------------------------------------------------DATAPATH--------------------------------------------------------------
+
+----------------------------------------------------------------------------------
+-- Company: 
+-- Engineer: 
+-- 
+-- Create Date:    13:52:07 04/05/2014 
+-- Design Name: 
+-- Module Name:    gcd_datapath - Behavioral 
+-- Project Name: 
+-- Target Devices: 
+-- Tool versions: 
+-- Description: 
+--
+-- Dependencies: 
+--
+-- Revision: 
+-- Revision 0.01 - File Created
+-- Additional Comments: 
+--
+----------------------------------------------------------------------------------
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.STD_LOGIC_UNSIGNED.ALL;
+
+-- Uncomment the following library declaration if using
+-- arithmetic functions with Signed or Unsigned values
+--use IEEE.NUMERIC_STD.ALL;
+
+-- Uncomment the following library declaration if instantiating
+-- any Xilinx primitives in this code.
+--library UNISIM;
+--use UNISIM.VComponents.all;
+
+entity gcd_datapath is
+	 generic (N : integer := 4);
+    Port ( 
+			  clk : in STD_LOGIC;
+			  clr : in STD_LOGIC;	
+			  xmsel : in  STD_LOGIC;
+           ymsel : in  STD_LOGIC;
+           xld : in  STD_LOGIC;
+           yld : in  STD_LOGIC;
+           gld : in  STD_LOGIC;
+           eqflg : out  STD_LOGIC;
+           ltflg : out  STD_LOGIC;
+           xin : in  STD_LOGIC_VECTOR(N-1 downto 0);
+           yin : in  STD_LOGIC_VECTOR(N-1 downto 0);
+           gcd : out STD_LOGIC_VECTOR(N-1 downto 0)
+			 );
+end gcd_datapath;
+
+architecture gcd_datapath of gcd_datapath is
+	
+	component mux is
+		generic (N : integer := 4);
+		port 
+		(
+			a : in std_logic_vector (N-1 downto 0);
+			b : in std_logic_vector (N-1 downto 0);
+			c : out std_logic_vector (N-1 downto 0);
+			sel : in std_logic
+		);
+	end component;		
+
+
+	component reg is
+		generic (N : integer := 4);
+		port
+		(
+			load : in std_logic;
+			clk : in STD_LOGIC;
+			clr : in STD_LOGIC;
+			d : in std_logic_vector(N-1 downto 0);
+			e : out std_logic_vector(N-1 downto 0)
+		);
+	end component;	
+
+
+signal x,y,x1,y1,xmy,ymx : std_logic_vector(N-1 downto 0);
+begin
+
+lt : process(x,y)
+	begin
+		if (x < y) then
+		ltflg <= '1';
+		eqflg <= '0';
+		ymx(3 downto 0) <= (y- x);
+		elsif (x > y) then
+		ltflg <= '0';
+		eqflg <= '0';
+		xmy(3 downto 0) <= (x-y);
+		--elsif (x = y) then
+		else
+		eqflg <= '1';
+		end if;
+end process;
+
+---PORT-MAPPING with components-----
+
+		--MUX--
+M1 : mux	--update2
+		generic map (N => 4)
+		port map
+			(
+				a => xmy,
+				b => xin,
+				c => x1,
+				sel => xmsel
+			);
+
+M2 : mux	--update1
+		generic map (N => 4)
+		port map
+			(
+				a => ymx,
+				b => yin,
+				c => y1,
+				sel => ymsel
+			);
+		
+		--REG--
+R1 : reg
+		generic map (N => 4)
+		port map
+			(
+				
+				load => xld,
+				clk => clk,
+				clr => clr,
+				d => x1,
+				e => x
+			);
+
+R2 : reg
+		generic map (N => 4)
+		port map
+			(
+				load => yld,
+				clk => clk,
+				clr => clr,
+				d => y1,
+				e => y
+			);
+
+R3 : reg
+		generic map (N => 4)
+		port map
+			(
+				load => gld,
+				clk => clk,
+				clr => clr,
+				d => x,
+				e => gcd
+			);
+
+end gcd_datapath;
+
+
+
+
+--------------------------------------------------RAM--------------------------------------------------------------------
+
+----------------------------------------------------------------------------------
+-- Company: 
+-- Engineer: 
+-- 
+-- Create Date:    14:53:59 04/12/2014 
+-- Design Name: 
+-- Module Name:    DRAM_1 - Behavioral 
+-- Project Name: 
+-- Target Devices: 
+-- Tool versions: 
+-- Description: 
+--
+-- Dependencies: 
+--
+-- Revision: 
+-- Revision 0.01 - File Created
+-- Additional Comments: 
+--
+----------------------------------------------------------------------------------
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.STD_LOGIC_UNSIGNED.ALL;
+-- Uncomment the following library declaration if using
+-- arithmetic functions with Signed or Unsigned values
+--use IEEE.NUMERIC_STD.ALL;
+
+-- Uncomment the following library declaration if instantiating
+-- any Xilinx primitives in this code.
+--library UNISIM;
+--use UNISIM.VComponents.all;
+
+entity DRAM_1 is
+    Port ( 
+			  clock : in STD_LOGIC;
+			  wr_address : in  STD_LOGIC_VECTOR(7 DOWNTO 0);
+           rd_address : in  STD_LOGIC_VECTOR(7 DOWNTO 0);
+           wr : in  STD_LOGIC;
+           rd : in  STD_LOGIC;
+           data_in : in  STD_LOGIC_VECTOR(3 DOWNTO 0);
+           data_out : out  STD_LOGIC_VECTOR(3 DOWNTO 0)
+          );
+end DRAM_1;
+
+architecture Behavioral of DRAM_1 is
+type store is array (integer range 0 to 255) of std_logic_vector(3 downto 0);
+signal gather : store;
+signal wr_address_temp : integer range 0 to 255;
+signal rd_address_temp : integer range 0 to 255;
+begin
+
+	wr_address_temp <= conv_integer(wr_address);
+	rd_address_temp <= conv_integer(rd_address);
+		
+
+write_proc : process(clock,wr)
+begin
+		if(clock'event and clock = '1') then
+		if(wr = '1') then
+		gather(wr_address_temp) <= data_in;
+		end if;
+		end if;
+end process;
+
+
+read_proc : process(clock,rd)
+begin
+		if (rd = '0') then
+		data_out <= X"0";
+		elsif (clock'event and clock = '1') then
+		data_out <= gather(rd_address_temp);
+		end if;
+end process;
+
+end Behavioral;
+
+
+
+------------------------------------------------ROM----------------------------------------------------------------------
+
+----------------------------------------------------------------------------------
+-- Company: 
+-- Engineer: 
+-- 
+-- Create Date:    00:31:26 04/07/2014 
+-- Design Name: 
+-- Module Name:    rom - Behavioral 
+-- Project Name: 
+-- Target Devices: 
+-- Tool versions: 
+-- Description: 
+--
+-- Dependencies: 
+--
+-- Revision: 
+-- Revision 0.01 - File Created
+-- Additional Comments: 
+--
+----------------------------------------------------------------------------------
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.STD_LOGIC_UNSIGNED.ALL;
+-- Uncomment the following library declaration if using
+-- arithmetic functions with Signed or Unsigned values
+--use IEEE.NUMERIC_STD.ALL;
+
+-- Uncomment the following library declaration if instantiating
+-- any Xilinx primitives in this code.
+--library UNISIM;
+--use UNISIM.VComponents.all;
+
+--stores the value of GCD 
+
+entity rom is
+		generic (N : integer := 4);
+    Port ( address_sel_1 : in STD_LOGIC_vector(N-1 downto 0);
+			  address_sel_2 : in STD_LOGIC_vector(N-1 downto 0);
+           mem_on : in STD_LOGIC;
+			  data_out_1 : out  STD_LOGIC_VECTOR(N-1 downto 0);
+			  data_out_2 : out  STD_LOGIC_VECTOR(N-1 downto 0));
+end rom;
+
+architecture Behavioral of rom is
+constant data0 : STD_LOGIC_vector(N-1 downto 0) := "1111";--0--15
+constant data1 : STD_LOGIC_vector(N-1 downto 0) := "1100";--1--12
+constant data2 : STD_LOGIC_vector(N-1 downto 0) := "1000";--2--8
+constant data3 : STD_LOGIC_vector(N-1 downto 0) := "0100";--3--4
+constant data4 : STD_LOGIC_vector(N-1 downto 0) := "1010";--4--10
+constant data5 : STD_LOGIC_vector(N-1 downto 0) := "1000";--5--8
+constant data6 : STD_LOGIC_vector(N-1 downto 0) := "1111";--6--15
+constant data7 : STD_LOGIC_vector(N-1 downto 0) := "0101";--7--5
+constant data8 : STD_LOGIC_vector(N-1 downto 0) := "1111";--8--15
+constant data9 : STD_LOGIC_vector(N-1 downto 0) := "1011";--9--11
+constant data10 : STD_LOGIC_vector(N-1 downto 0) := "1100";--10--12
+constant data11 : STD_LOGIC_vector(N-1 downto 0) := "0100";--11--4
+constant data12 : STD_LOGIC_vector(N-1 downto 0) := "1010";--12--10
+constant data13 : STD_LOGIC_vector(N-1 downto 0) := "1111";--13--15
+constant data14 : STD_LOGIC_vector(N-1 downto 0) := "0111";--14--7
+constant data15 : STD_LOGIC_vector(N-1 downto 0) := "1110";--15--14
+
+type store is array (integer range 0 to 15) of std_logic_vector(N-1 downto 0);
+constant gather:store := (data0,data1,data2,data3,data4,data5,data6,data7,data8,data9,data10,data11,data12,data13,data14,data15);
+
+begin
+process(address_sel_1,mem_on,address_sel_2)
+variable i1 : integer;
+variable i2 : integer;
+begin
+		if (mem_on = '1') then
+			i1 := conv_integer(address_sel_1);
+			i2 := conv_integer(address_sel_2);
+			data_out_1 <= gather(i1);
+			data_out_2 <= gather(i2);
+		else
+			data_out_1 <= "0000";
+			data_out_2 <= "0000";
+		end if;	
+end process;
+end Behavioral;
+
+
+------------------------------------------------------REG----------------------------------------------------------------
+
+----------------------------------------------------------------------------------
+-- Company: 
+-- Engineer: 
+-- 
+-- Create Date:    00:14:29 04/06/2014 
+-- Design Name: 
+-- Module Name:    reg - Behavioral 
+-- Project Name: 
+-- Target Devices: 
+-- Tool versions: 
+-- Description: 
+--
+-- Dependencies: 
+--
+-- Revision: 
+-- Revision 0.01 - File Created
+-- Additional Comments: 
+--
+----------------------------------------------------------------------------------
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+-- Uncomment the following library declaration if using
+-- arithmetic functions with Signed or Unsigned values
+--use IEEE.NUMERIC_STD.ALL;
+
+-- Uncomment the following library declaration if instantiating
+-- any Xilinx primitives in this code.
+--library UNISIM;
+--use UNISIM.VComponents.all;
+
+entity reg is
+	generic(N : integer := 4);
+    Port ( load : in  STD_LOGIC;
+           clk : in  STD_LOGIC;
+           clr : in  STD_LOGIC;
+           d : in  STD_LOGIC_VECTOR(N-1 downto 0);
+           e : out  STD_LOGIC_VECTOR(N-1 downto 0));
+end reg;
+
+architecture Behavioral of reg is
+begin
+process(load,d,clr,clk)
+begin
+		if clr = '1' then
+		e <= "0000";
+		elsif clk'event and clk = '1' then
+			if load = '1' then
+		e <= d;
+		end if;
+		end if;
+end process;
+end Behavioral;
+
+
+----------------------------------------------------MUX------------------------------------------------------------------
+
+----------------------------------------------------------------------------------
+-- Company: 
+-- Engineer: 
+-- 
+-- Create Date:    00:07:53 04/06/2014 
+-- Design Name: 
+-- Module Name:    mux - Behavioral 
+-- Project Name: 
+-- Target Devices: 
+-- Tool versions: 
+-- Description: 
+--
+-- Dependencies: 
+--
+-- Revision: 
+-- Revision 0.01 - File Created
+-- Additional Comments: 
+--
+----------------------------------------------------------------------------------
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+-- Uncomment the following library declaration if using
+-- arithmetic functions with Signed or Unsigned values
+--use IEEE.NUMERIC_STD.ALL;
+
+-- Uncomment the following library declaration if instantiating
+-- any Xilinx primitives in this code.
+--library UNISIM;
+--use UNISIM.VComponents.all;
+
+entity mux is
+		generic (N : integer := 4);
+    Port ( a : in  STD_LOGIC_VECTOR(N-1 downto 0);
+           b : in  STD_LOGIC_VECTOR(N-1 downto 0);
+           c : out  STD_LOGIC_VECTOR(N-1 downto 0);
+           sel : in  STD_LOGIC);
+end mux;
+
+architecture Behavioral of mux is
+begin
+process(a,b,sel)
+begin
+	if( sel = '1' ) then 
+	    c <= b;		-- do nothing
+	else  
+	    c <= a;		-- load inputs
+	end if;
+end process;
+
+
+end Behavioral;
+
+----------------------------------------------TESTBENCH------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+-- Company: 
+-- Engineer:
+--
+-- Create Date:   18:09:51 04/07/2014
+-- Design Name:   
+-- Module Name:   C:/personal files/Nishant/dsd/gcd_project/tb_top_module.vhd
+-- Project Name:  gcd_project
+-- Target Device:  
+-- Tool versions:  
+-- Description:   
+-- 
+-- VHDL Test Bench Created by ISE for module: top_module
+-- 
+-- Dependencies:
+-- 
+-- Revision:
+-- Revision 0.01 - File Created
+-- Additional Comments:
+--
+-- Notes: 
+-- This testbench has been automatically generated using types std_logic and
+-- std_logic_vector for the ports of the unit under test.  Xilinx recommends
+-- that these types always be used for the top-level I/O of a design in order
+-- to guarantee that the testbench will bind correctly to the post-implementation 
+-- simulation model.
+--------------------------------------------------------------------------------
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.STD_LOGIC_UNSIGNED.ALL;
+use ieee.std_logic_arith.all;
+ 
+-- Uncomment the following library declaration if using
+-- arithmetic functions with Signed or Unsigned values
+--USE ieee.numeric_std.ALL;
+ 
+ENTITY tb_top_module IS
+END tb_top_module;
+ 
+ARCHITECTURE behavior OF tb_top_module IS 
+ 
+    -- Component Declaration for the Unit Under Test (UUT)
+ 
+    COMPONENT top_module
+		generic (N : integer := 4);
+	PORT(
+			  clk : in  STD_LOGIC;
+			  clr : in STD_LOGIC;	
+           go : in  STD_LOGIC;
+			  mem_on : in STD_LOGIC;
+			  wr_ram : in std_logic;
+			  rd_ram : in std_logic;
+			  wr_ram_address : in STD_LOGIC_vector(7 downto 0);
+			  rd_ram_address : in STD_LOGIC_vector(7 downto 0);
+			  address_sel_1 : in STD_LOGIC_vector(N-1 downto 0);
+			  address_sel_2 : in STD_LOGIC_vector(N-1 downto 0);
+			  gcd_output : out STD_LOGIC_VECTOR(N-1 downto 0)
+			  
+        );
+    END COMPONENT;
+    
+
+   --Inputs
+   signal clk : std_logic := '0';
+   signal clr : std_logic := '0';
+   signal go : std_logic := '0';
+   signal mem_on : std_logic := '0';
+   signal address_sel_1 : std_logic_vector(3 downto 0) := (others => '0');
+	signal address_sel_2 : std_logic_vector(3 downto 0) := (others => '0');
+	signal wr_ram : std_logic;
+	signal rd_ram : std_logic;
+	signal wr_ram_address : STD_LOGIC_vector(7 downto 0) := (others => '0');
+	signal rd_ram_address : STD_LOGIC_vector(7 downto 0):= (others => '0');
+ 	--Outputs
+   signal gcd_output : std_logic_vector(3 downto 0);
+	---
+	signal error_count : integer := 0;
+
+   -- Clock period definitions
+   constant clk_period : time := 20 ns;
+ 
+BEGIN
+ 
+	-- Instantiate the Unit Under Test (UUT)
+   uut: top_module 
+	generic map (N => 4)
+	PORT MAP (
+          clk => clk,
+          clr => clr,
+          go => go,
+          mem_on => mem_on,
+			 wr_ram => wr_ram,
+			 rd_ram => rd_ram,
+			 wr_ram_address => wr_ram_address,
+			 rd_ram_address => rd_ram_address,	
+          address_sel_1 => address_sel_1,
+			 address_sel_2 => address_sel_2,
+			 gcd_output => gcd_output
+        );
+
+   -- Clock process definitions
+   clk_process :process
+   begin
+		clk <= '0';
+		wait for clk_period/2;
+		clk <= '1';
+		wait for clk_period/2;
+   end process;
+ 
+
+   -- Stimulus process
+   go_and_clr : process
+   begin		
+	-- ROM READING AND RAM WRITING SIMULATANEOUSLY
+   wait for 0 ns; go <= '0'; clr <= '1'; mem_on <= '0';wr_ram <= '0';rd_ram <= '0'; 
+	
+	wait for 200 ns; go <= '1'; clr <= '0'; mem_on <= '1'; address_sel_1 <= "0000";address_sel_2 <= "0001"; wr_ram <= '1';wr_ram_address <= X"02";
+	wait for 900 ns; go <= '0'; clr <= '1';mem_on <= '0'; wr_ram <= '0';
+
+	
+	wait for 200 ns; go <= '1'; clr <= '0'; mem_on <= '1'; address_sel_1 <= "0001";address_sel_2 <= "0010";wr_ram <= '1';wr_ram_address <= X"05";
+	wait for 900 ns; go <= '0'; clr <= '1';mem_on <= '0'; wr_ram <= '0';
+	
+	
+	
+	wait for 40 ns; go <= '1'; clr <= '0'; mem_on <= '1'; address_sel_1 <= "0010";address_sel_2 <= "0011";wr_ram <= '1';wr_ram_address <= X"0A";
+	wait for 900 ns; go <= '0'; clr <= '1';mem_on <= '0'; wr_ram <= '0';
+	
+	
+	
+	wait for 40 ns; go <= '1'; clr <= '0'; mem_on <= '1'; address_sel_1 <= "0011"; address_sel_2 <= "0100";wr_ram <= '1';wr_ram_address <= X"0F";
+	wait for 900 ns; go <= '0'; clr <= '1';mem_on <= '0'; wr_ram <= '0';
+	
+	
+	
+	wait for 40 ns; go <= '1'; clr <= '0'; mem_on <= '1'; address_sel_1 <= "0100"; address_sel_2 <= "0101";wr_ram <= '1';wr_ram_address <= X"1F";
+	wait for 900 ns; go <= '0'; clr <= '1';mem_on <= '0'; wr_ram <= '0';
+	
+	wait for 40 ns; go <= '1'; clr <= '0'; mem_on <= '1'; address_sel_1 <= "0101"; address_sel_2 <= "0110";wr_ram <= '1';wr_ram_address <= X"12";
+	wait for 900 ns; go <= '0'; clr <= '1';mem_on <= '0'; wr_ram <= '0';
+	
+	wait for 40 ns; go <= '1'; clr <= '0'; mem_on <= '1'; address_sel_1 <= "0110"; address_sel_2 <= "0111";wr_ram <= '1';wr_ram_address <= X"15";
+	wait for 900 ns; go <= '0'; clr <= '1';mem_on <= '0'; wr_ram <= '0';
+	
+	wait for 40 ns; go <= '1'; clr <= '0'; mem_on <= '1'; address_sel_1 <= "0111"; address_sel_2 <= "1000";wr_ram <= '1';wr_ram_address <= X"25";
+	wait for 900 ns; go <= '0'; clr <= '1';mem_on <= '0'; wr_ram <= '0';
+	
+	wait for 40 ns; go <= '1'; clr <= '0'; mem_on <= '1'; address_sel_1 <= "1000"; address_sel_2 <= "1001";wr_ram <= '1';wr_ram_address <= X"31";
+	wait for 900 ns; go <= '0'; clr <= '1';mem_on <= '0'; wr_ram <= '0';
+		
+	wait for 40 ns; go <= '1'; clr <= '0'; mem_on <= '1'; address_sel_1 <= "1001"; address_sel_2 <= "1010";wr_ram <= '1';wr_ram_address <= X"39";
+	wait for 900 ns; go <= '0'; clr <= '1';mem_on <= '0'; wr_ram <= '0';
+	
+	wait for 40 ns; go <= '1'; clr <= '0'; mem_on <= '1'; address_sel_1 <= "1010"; address_sel_2 <= "1011";wr_ram <= '1';wr_ram_address <= X"42";
+	wait for 900 ns; go <= '0'; clr <= '1';mem_on <= '0'; wr_ram <= '0';
+		
+	wait for 40 ns; go <= '1'; clr <= '0'; mem_on <= '1'; address_sel_1 <= "1011"; address_sel_2 <= "1100"; wr_ram <= '1';wr_ram_address <= X"48";
+	wait for 900 ns; go <= '0'; clr <= '1';mem_on <= '0'; wr_ram <= '0';
+	
+	wait for 40 ns; go <= '1'; clr <= '0'; mem_on <= '1'; address_sel_1 <= "1100"; address_sel_2 <= "1101"; wr_ram <= '1';wr_ram_address <= X"52";
+	wait for 900 ns; go <= '0'; clr <= '1';mem_on <= '0'; wr_ram <= '0';
+	
+	wait for 40 ns; go <= '1'; clr <= '0'; mem_on <= '1'; address_sel_1 <= "1101"; address_sel_2 <= "1110"; wr_ram <= '1';wr_ram_address <= X"54";
+	wait for 900 ns; go <= '0'; clr <= '1';mem_on <= '0'; wr_ram <= '0';
+		
+	wait for 40 ns; go <= '1'; clr <= '0'; mem_on <= '1'; address_sel_1 <= "1110"; address_sel_2 <= "1111"; wr_ram <= '1';wr_ram_address <= X"58";
+	wait for 900 ns; go <= '0'; clr <= '1';mem_on <= '0'; address_sel_1 <= "0000"; address_sel_2 <= "0000"; wr_ram <= '0';
+	
+	
+		
+	-------------------------------------------------------------
+	----------------READ RAM PROCESS-----------------------------
+   
+			wait for 100 ns; rd_ram <= '0';
+			wait for 900 ns; rd_ram <= '1';rd_ram_address <= X"02";
+			wait for 900 ns; rd_ram <= '0'; 
+	----------------------------------------
+	--AUTOMATED RESULT CHECKER--------------
+	----------------------------------------
+	--num1 = 15, num2 = 12, expected GCD = 3
+	assert (gcd_output = "0011") 
+	report " RESULT INCORRECT : GCD MODULE FAILURE"
+	severity error;
+	--error count
+	if (gcd_output /= "0011") then
+	error_count <= error_count + 1;
+	report"*************ERROR DETECTED*************";
+	else
+	error_count <= error_count + 0;
+	report"OUTPUT CORRECT";
+	end if;
+	----------------------------------------
+	----------------------------------------
+			
+			
+			
+			wait for 900 ns; rd_ram <= '1';rd_ram_address <= X"05";
+			wait for 900 ns; rd_ram <= '0'; 
+	----------------------------------------
+	--AUTOMATED RESULT CHECKER--------------
+	----------------------------------------
+	--num1 = 12, num2 = 8, expected GCD = 4
+	assert (gcd_output = "0100")
+	report " RESULT INCORRECT : GCD MODULE FAILURE"
+	severity error;
+	--error count
+	if (gcd_output /= "0100") then
+	error_count <= error_count + 1;
+	report"*************ERROR DETECTED*************";
+	else
+	error_count <= error_count + 0;
+	report"OUTPUT CORRECT";
+	end if;
+	----------------------------------------
+	----------------------------------------
+			wait for 900 ns; rd_ram <= '1';rd_ram_address <= X"0A";
+			wait for 900 ns; rd_ram <= '0';
+	----------------------------------------
+	--AUTOMATED RESULT CHECKER--------------
+	----------------------------------------
+	--num1 = 8, num2 = 4, expected GCD = 4
+	assert(gcd_output = "0100")
+	report " RESULT INCORRECT : GCD MODULE FAILURE"
+	severity error;
+	--error count
+	if (gcd_output /= "0100") then
+	error_count <= error_count + 1;
+	report"*************ERROR DETECTED*************";
+	else
+	error_count <= error_count + 0;
+	report"OUTPUT CORRECT";
+	end if;
+	----------------------------------------
+	----------------------------------------
+			wait for 900 ns; rd_ram <= '1';rd_ram_address <= X"0F";
+			wait for 900 ns; rd_ram <= '0';
+	----------------------------------------
+	--AUTOMATED RESULT CHECKER--------------
+	----------------------------------------
+	--num1 = 4, num2 = 10, expected GCD = 2
+	assert (gcd_output = "0010") 
+	report " RESULT INCORRECT : GCD MODULE FAILURE"
+	severity error;
+	--error count
+	if (gcd_output /= "0010") then
+	error_count <= error_count + 1;
+	report"*************ERROR DETECTED*************";
+	else
+	error_count <= error_count + 0;
+	report"OUTPUT CORRECT";
+	end if;
+	----------------------------------------
+	----------------------------------------
+			wait for 900 ns; rd_ram <= '1';rd_ram_address <= X"1F" ;
+			wait for 900 ns; rd_ram <= '0';
+	----------------------------------------
+	--AUTOMATED RESULT CHECKER--------------
+	----------------------------------------
+	--num1 = 10, num2 = 8, expected GCD = 2
+	assert (gcd_output = "0010")
+	report " RESULT INCORRECT : GCD MODULE FAILURE"
+	severity error;
+	--error count
+	if (gcd_output /= "0010") then
+	error_count <= error_count + 1;
+	report"*************ERROR DETECTED*************";
+	else
+	error_count <= error_count + 0;
+	report"OUTPUT CORRECT";
+	end if;
+	
+	----------------------------------------
+	----------------------------------------		
+			
+			wait for 900 ns; rd_ram <= '1';rd_ram_address <= X"12" ;
+			wait for 900 ns; rd_ram <= '0';
+	----------------------------------------
+	--AUTOMATED RESULT CHECKER--------------
+	----------------------------------------
+	--num1 = 8, num2 = 15, expected GCD = 1
+	assert (gcd_output = "0001") 
+	report " RESULT INCORRECT : GCD MODULE FAILURE"
+	severity error;
+	if (gcd_output /= "0001") then
+	error_count <= error_count + 1;
+	report"*************ERROR DETECTED*************";
+	else
+	error_count <= error_count + 0;
+	report"OUTPUT CORRECT";
+	end if;
+	
+	
+	----------------------------------------
+			wait for 900 ns; rd_ram <= '1';rd_ram_address <= X"15";
+			wait for 900 ns; rd_ram <= '0';
+	--------------------------------------------------------------------------------
+	--AUTOMATED RESULT CHECKER--------------
+	----------------------------------------
+	--num1 = 15, num2 = 3, expected GCD = 5
+	assert (gcd_output = "0101")
+	report " RESULT INCORRECT : GCD MODULE FAILURE"
+	severity error;
+	if (gcd_output /= "0101") then
+	error_count <= error_count + 1;
+	report"*************ERROR DETECTED*************";
+	else
+	error_count <= error_count + 0;
+	report"OUTPUT CORRECT";
+	end if;
+	
+	----------------------------------------
+	----------------------------------------
+			wait for 900 ns; rd_ram <= '1';rd_ram_address <= X"25";
+			wait for 900 ns; rd_ram <= '0';
+	----------------------------------------
+	--AUTOMATED RESULT CHECKER--------------
+	----------------------------------------
+	--num1 = 5, num2 = 15, expected GCD = 5
+	assert (gcd_output = "0101")
+	report " RESULT INCORRECT : GCD MODULE FAILURE"
+	severity error;
+	if (gcd_output /= "0101") then
+	error_count <= error_count + 1;
+	report"*************ERROR DETECTED*************";
+	else
+	error_count <= error_count + 0;
+	report"OUTPUT CORRECT";
+	end if;
+	
+	----------------------------------------
+	----------------------------------------
+			wait for 900 ns; rd_ram <= '1';rd_ram_address <= X"31";
+			wait for 900 ns; rd_ram <= '0';
+	----------------------------------------
+	--AUTOMATED RESULT CHECKER--------------
+	----------------------------------------
+	--num1 = 15, num2 = 11, expected GCD = 1
+	assert (gcd_output = "0001")
+	report " RESULT INCORRECT : GCD MODULE FAILURE"
+	severity error;
+	if (gcd_output /= "0001") then
+	error_count <= error_count + 1;
+	report"*************ERROR DETECTED*************";
+	else
+	error_count <= error_count + 0;
+	report"OUTPUT CORRECT";
+	end if;
+	----------------------------------------
+	----------------------------------------
+		wait for 900 ns; rd_ram <= '1'; rd_ram_address <= X"39";
+		wait for 900 ns; rd_ram <= '0';
+	----------------------------------------
+	--AUTOMATED RESULT CHECKER--------------
+	----------------------------------------
+	--num1 = 11, num2 = 12, expected GCD = 1
+	assert (gcd_output = "0001")
+	report " RESULT INCORRECT : GCD MODULE FAILURE"
+	severity error;
+	if (gcd_output /= "0001") then
+	error_count <= error_count + 1;
+	report"*************ERROR DETECTED*************";
+	else
+	error_count <= error_count + 0;
+	report"OUTPUT CORRECT";
+	end if;
+	----------------------------------------
+	----------------------------------------
+		wait for 900 ns; rd_ram <= '1'; rd_ram_address <= X"42";
+		wait for 900 ns; rd_ram <= '0';
+	
+	----------------------------------------
+	--AUTOMATED RESULT CHECKER--------------
+	----------------------------------------
+	--num1 = 12, num2 = 4, expected GCD = 4
+	assert (gcd_output = "0100")
+	report " RESULT INCORRECT : GCD MODULE FAILURE"
+	severity error;
+	if (gcd_output /= "0100") then
+	error_count <= error_count + 1;
+	report"*************ERROR DETECTED*************";
+	else
+	error_count <= error_count + 0;
+	report"OUTPUT CORRECT";
+	end if;
+	----------------------------------------
+	----------------------------------------
+		wait for 900 ns; rd_ram <= '1'; rd_ram_address <= X"48";
+		wait for 900 ns; rd_ram <= '0';
+	----------------------------------------
+	--AUTOMATED RESULT CHECKER--------------
+	----------------------------------------
+	--num1 = 4, num2 = 10, expected GCD = 2
+	assert (gcd_output = "0010")
+	report " RESULT INCORRECT : GCD MODULE FAILURE"
+	severity error;
+	if (gcd_output /= "0010") then
+	error_count <= error_count + 1;
+	report"*************ERROR DETECTED*************";
+	else
+	error_count <= error_count + 0;
+	report"OUTPUT CORRECT";
+	end if;
+	----------------------------------------
+	----------------------------------------
+	
+		wait for 900 ns; rd_ram <= '1'; rd_ram_address <= X"52";
+		wait for 900 ns; rd_ram <= '0';
+	----------------------------------------
+	--AUTOMATED RESULT CHECKER--------------
+	----------------------------------------
+	--num1 = 10, num2 = 15, expected GCD = 5
+	assert (gcd_output = "0101")
+	report " RESULT INCORRECT : GCD MODULE FAILURE"
+	severity error;
+	if (gcd_output /= "0101") then
+	error_count <= error_count + 1;
+	report"*************ERROR DETECTED*************";
+	else
+	error_count <= error_count + 0;
+	report"OUTPUT CORRECT";
+	end if;
+	----------------------------------------
+	----------------------------------------	
+		
+		wait for 900 ns; rd_ram <= '1'; rd_ram_address <= X"54";
+		wait for 900 ns; rd_ram <= '0';
+	----------------------------------------
+	--AUTOMATED RESULT CHECKER--------------
+	----------------------------------------
+	--num1 = 15, num2 = 7, expected GCD = 1
+	assert (gcd_output = "0001")
+	report " RESULT INCORRECT : GCD MODULE FAILURE"
+	severity error;
+	if (gcd_output /= "0001") then
+	error_count <= error_count + 1;
+	report"*************ERROR DETECTED*************";
+	else
+	error_count <= error_count + 0;
+	report"OUTPUT CORRECT";
+	end if;
+	----------------------------------------
+	----------------------------------------	
+		wait for 900 ns; rd_ram <= '1'; rd_ram_address <= X"58";
+		wait for 900 ns; rd_ram <= '0';
+	----------------------------------------
+	--AUTOMATED RESULT CHECKER--------------
+	----------------------------------------
+	--num1 = 7, num2 = 14, expected GCD = 7
+	assert (gcd_output = "0111")
+	report " RESULT INCORRECT : GCD MODULE FAILURE"
+	severity error;
+	if (gcd_output /= "0111") then
+	error_count <= error_count + 1;
+	report"*************ERROR DETECTED*************";
+	else
+	error_count <= error_count + 0;
+	report"OUTPUT CORRECT";
+	end if;
+	
+	
+	
+	
+	wait for 800 ns; rd_ram <= '0';wr_ram <= '0';rd_ram_address <= X"00";wr_ram_address <= X"00";
+	----------------------------------------
+	---Total Error Count
+	----------------------------------------
+	
+	report " TOTAL ERROR COUNT = "& integer'image(error_count);
+	
+wait;
+end process;			
+END;
+
+
+
+
+
+
+
 
