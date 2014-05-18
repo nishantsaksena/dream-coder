@@ -1,0 +1,135 @@
+----------------------------------------------------------------------------------
+-- Company: 
+-- Engineer: Nishant Saksena
+-- 
+-- Create Date:    14:29:42 04/05/2014 
+-- Design Name: 
+-- Module Name:    gcd_contolpath - Behavioral 
+-- Project Name: 
+-- Target Devices: 
+-- Tool versions: 
+-- Description: 
+--
+-- Dependencies: 
+--
+-- Revision: 
+-- Revision 0.01 - File Created
+-- Additional Comments: 
+--
+----------------------------------------------------------------------------------
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.STD_LOGIC_UNSIGNED.ALL;
+-- Uncomment the following library declaration if using
+-- arithmetic functions with Signed or Unsigned values
+--use IEEE.NUMERIC_STD.ALL;
+
+-- Uncomment the following library declaration if instantiating
+-- any Xilinx primitives in this code.
+--library UNISIM;
+--use UNISIM.VComponents.all;
+
+entity gcd_contolpath is
+    Port ( clk : in  STD_LOGIC;
+           clr : in  STD_LOGIC;
+           eqflg : in  STD_LOGIC;
+           ltflg : in  STD_LOGIC;
+           go : in  STD_LOGIC;
+           xmsel : out  STD_LOGIC;
+           ymsel : out  STD_LOGIC;
+           xld : out  STD_LOGIC;
+           yld : out  STD_LOGIC;
+           gld : out  STD_LOGIC);
+end gcd_contolpath;
+
+architecture gcd_contolpath of gcd_contolpath is
+type state_type is (start,input,test1,test2,update1,update2,done);
+signal present_state,next_state : state_type;
+begin
+
+	   
+		
+initial : process(clk,clr)
+	begin
+		if clr = '1' then
+		present_state <= start;
+		elsif clk'event and clk = '1' then
+		present_state <= next_state;
+		end if;
+end process;
+
+	P1 : process(present_state,go,eqflg,ltflg)
+	begin
+		gld <= '0';
+		case present_state is
+				when start =>
+						xld <= '0';
+						yld <= '0';
+						xmsel <= '1';
+						ymsel <= '1';
+						
+						if go = '1' then
+						next_state <= input;
+						else
+						next_state <= start;
+						end if;
+						report "start";
+				
+				when input =>
+						next_state <= test1;
+						xld <= '1';
+						yld <= '1';
+						xmsel <= '1';
+						ymsel <= '1';
+						report "input";
+						
+				when test1 =>
+						if eqflg = '0' then
+						next_state <= test2;
+						else
+						next_state <= done;
+						end if;
+						report "test1";
+						
+				when test2 =>
+						if ltflg = '1' then
+						next_state <= update1;
+						else
+						next_state <= update2;
+						end if;
+						report "test2";
+				
+				when update1 => --ymx
+						next_state <= test1;
+						yld <= '1';
+						ymsel <= '0';
+						xmsel <= '1';
+						xld <= '0';
+						report "update1";
+						
+				when update2 => --xmy 		x > y
+						next_state <= test1;
+						xld <= '1';
+						xmsel <= '0';
+						ymsel <= '1';
+						yld <= '0';
+						report "update2";
+						
+				when done =>
+						next_state <= done;
+						gld <= '1';
+						xld <= '0';
+						yld <= '0';
+						xmsel <= '1';
+						xmsel <= '1';
+						report "done reached";
+				
+				when others => null;
+				report "Error in State machine";
+				
+end case;
+end process;				
+				
+					
+end gcd_contolpath;
+
